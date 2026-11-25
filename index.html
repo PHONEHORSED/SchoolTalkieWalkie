@@ -4,7 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Live Stranger Chat</title>
-  <script src="https://https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+  <script>
+    // Dynamically load PeerJS so the URL never gets cut off
+    const s = document.createElement("script");
+    s.src = "https://jsdelivr.net" + "peerjs@1.5.4/dist/peerjs.min.js";
+    document.head.appendChild(s);
+  </script>
   <style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { margin: 0; background: #121212; color: #f0f0f0; display: flex; justify-content: center; align-items: center; height: 100vh; padding: 16px; }
@@ -60,18 +65,17 @@
   </div>
 
   <script>
-    // Unique room ID so your chat doesn't collide with other PeerJS apps
-    const ROOM_HOST_ID = "global-stranger-chat-room-123459";
+    const ROOM_HOST_ID = "inky-room-1234";
 
     let currentUser = null;
     let peer = null;
     let isHost = false;
     let hostConn = null;
-    let clients = []; // Used if this browser becomes the room host
+    let clients = new Array();
 
-    // Room memory (held by whoever is currently hosting the room)
-    let registeredUsers = new Set(); // lowercase usernames
-    let messageHistory = [];
+    // Room memory
+    let registeredUsers = new Set();
+    let messageHistory = new Array();
 
     const authScreen = document.getElementById("auth-screen");
     const chatScreen = document.getElementById("chat-screen");
@@ -94,6 +98,11 @@
     loginBtn.addEventListener("click", () => startAuth("login"));
 
     function startAuth(mode) {
+      if (typeof Peer === "undefined") {
+        errorMsg.textContent = "Still loading chat engine, click again in 1 second...";
+        return;
+      }
+
       const name = cleanName(usernameInput.value);
       if (name.length < 3) {
         errorMsg.textContent = "Username must be at least 3 letters/numbers.";
@@ -103,17 +112,14 @@
       setButtonsDisabled(true);
       errorMsg.textContent = "Connecting to chat room...";
 
-      // Try claiming the Host ID first. If taken, someone else is already hosting!
       const testHost = new Peer(ROOM_HOST_ID);
 
       testHost.on("open", () => {
-        // Nobody was in the room yet, so THIS browser becomes the room host
         isHost = true;
         peer = testHost;
         setupHostListeners();
 
         if (mode === "login") {
-          // Room was empty so no accounts exist yet
           peer.destroy();
           isHost = false;
           setButtonsDisabled(false);
@@ -123,12 +129,11 @@
 
         registeredUsers.add(name.toLowerCase());
         enterChat(name);
-        addSystemMessage("You started the room! Waiting for strangers to join...");
+        addSystemMessage("You started room 1234! Waiting for strangers to join...");
       });
 
       testHost.on("error", (err) => {
         if (err.type === "unavailable-id") {
-          // A host already exists! Connect to them as a regular user
           testHost.destroy();
           connectAsClient(name, mode);
         } else {
@@ -263,7 +268,7 @@
       if (peer) peer.destroy();
       currentUser = null;
       isHost = false;
-      clients = [];
+      clients = new Array();
       setButtonsDisabled(false);
       usernameInput.value = "";
       chatScreen.style.display = "none";
